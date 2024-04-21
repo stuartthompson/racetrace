@@ -5,6 +5,8 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    println!("Race Trace");
+
     // Initialize the logger
     simple_logger::SimpleLogger::new().init().unwrap();
 
