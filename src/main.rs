@@ -5,6 +5,7 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // TODO: Switch to using banner
     println!("Race Trace");
 
     // Initialize the logger
