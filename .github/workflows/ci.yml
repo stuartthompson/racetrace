@@ -15,7 +15,6 @@ jobs:
         os: [windows-latest, ubuntu-latest]
         include:
           - os: ubuntu-latest
-            container: alpine:latest
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
