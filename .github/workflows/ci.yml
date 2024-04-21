@@ -1,11 +1,6 @@
 name: Rust Build and Publish on Windows and Linux
 
 on:
-  push:
-    branches-ignore:
-      - main
-    tags:
-      - 'v*'
   pull_request:
     branches:
       - main
