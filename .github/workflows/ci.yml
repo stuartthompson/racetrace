@@ -1,24 +1,16 @@
-name: Rust Build and Publish on Windows and Linux
+name: Rust Build, Test, and Publish
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-        include:
-          - os: ubuntu-latest
-            artifact-name: 'racetrace-linux.zip'
-          - os: windows-latest
-            artifact-name: 'racetrace-windows.zip'
-
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
-
+  build_and_test:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -33,42 +25,64 @@ jobs:
       - name: Build
         run: cargo build --release --verbose
 
+      - name: Run tests
+        run: cargo test --verbose
+
+  package_and_publish:
+    needs: build_and_test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            suffix: 'linux'
+          - os: windows-latest
+            suffix: 'windows'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Extract version from Cargo.toml
+        id: cargo
+        run: echo "::set-output name=version::$(awk -F '"' '/^version =/ {print $2}' Cargo.toml)"
+      
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      
+      - name: Build
+        run: cargo build --release --verbose
+      
       - name: Zip the binary
         run: |
           mkdir artifact
           cp target/release/racetrace artifact/
           cd artifact
-          zip -r ${{ matrix.artifact-name }} racetrace
+          zip -r racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip racetrace
         shell: bash
       
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: artifact/${{ matrix.artifact-name }}
-      
-      - name: Run tests
-        run: cargo test --verbose
-
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
       
       - name: Upload release asset
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifact/${{ matrix.artifact-name }}
-          asset_name: ${{ matrix.artifact-name }}
+          asset_path: ./artifact/racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip
+          asset_name: racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip
           asset_content_type: application/zip
