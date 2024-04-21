@@ -1,6 +1,9 @@
 name: Rust Build on Windows and Linux
 
 on:
+  push:
+    branches-ignore:
+      - main
   pull_request:
     branches:
       - main
