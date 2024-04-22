@@ -19,7 +19,7 @@ jobs:
             suffix: 'windows'
     permissions:
       packages: write
-      contents: read
+      contents: write
 
 
     steps:
