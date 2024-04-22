@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+  permissions:
+    packages: write
+    contents: read
+
+  package_and_publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            suffix: 'linux'
+          - os: windows-latest
+            suffix: 'windows'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Extract version from Cargo.toml
+        id: cargo
+        run: echo "::set-output name=version::$(awk -F '"' '/^version =/ {print $2}' Cargo.toml)"
+      
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      
+      - name: Build
+        run: cargo build --release --verbose
+      
+      - name: Zip the binary
+        run: |
+          mkdir artifact
+          cp target/release/racetrace artifact/
+          cd artifact
+          zip -r racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip racetrace
+        shell: bash
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+      
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifact/racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip
+          asset_name: racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip
+          asset_content_type: application/zip
