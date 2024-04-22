@@ -24,11 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Extract version from Cargo.toml
-        id: cargo
-        run: echo "::set-output name=version::$(awk -F '"' '/^version =/ {print $2}' Cargo.toml)"
+        uses: actions/checkout@v4
       
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -45,25 +41,15 @@ jobs:
           mkdir artifact
           cp target/release/racetrace artifact/
           cd artifact
-          zip -r racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip racetrace
+          zip -r racetrace-{{ github.ref_name }}-${{ matrix.suffix }}.zip racetrace
         shell: bash
       
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          files: ./artifact/racetrace-${{ github.ref_name }}-${{ matrix.suffix }}.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-      
-      - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifact/racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip
-          asset_name: racetrace-${{ steps.cargo.outputs.version }}-${{ matrix.suffix }}.zip
-          asset_content_type: application/zip
+          make_latest: true
